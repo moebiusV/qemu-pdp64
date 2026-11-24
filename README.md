@@ -1,5 +1,7 @@
 # pdp64 on QEMU
 
+> **qemu-pdp64** is the `qemu/` directory of [moebiusV/pdp64](https://github.com/moebiusV/pdp64), split out with its history (`git subtree split`). The scripts (`build.sh`, `sync.sh`) still expect the layout of the pdp64 checkout (this directory as `pdp64/qemu`, with `../common`, `../spec` and `../../qemu-src` around it), and the generated constants and the shared executor come from pdp64; build from a pdp64 checkout until the scripts are made standalone. `pdp64` stays the source of truth until it settles; this repository is refreshed from it.
+
 `qemu-system-pdp64 -M pdp64-virt -kernel prog` runs the programs that `sim64` runs, with the same results.
 This directory holds everything written for it; `../qemu-src` (a QEMU v11.1.2 checkout) and
 `../qemu-build` are scratch places where it is built, never committed here.
