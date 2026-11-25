@@ -2,6 +2,13 @@
 
 > **qemu-pdp64** is the `qemu/` directory of [moebiusV/pdp64](https://github.com/moebiusV/pdp64), split out with its history (`git subtree split`). The scripts (`build.sh`, `sync.sh`) still expect the layout of the pdp64 checkout (this directory as `pdp64/qemu`, with `../common`, `../spec` and `../../qemu-src` around it), and the generated constants and the shared executor come from pdp64; build from a pdp64 checkout until the scripts are made standalone. `pdp64` stays the source of truth until it settles; this repository is refreshed from it.
 
+## Two emulators from one target
+
+- **The full system** (`qemu-system-pdp64`): the machine, the MMU, the devices and the hypervisor mode. The goal is to boot OpenBSD and Linux on it and run everything.
+- **User mode** (`qemu-pdp64`, QEMU's `linux-user`): runs Linux pdp64 binaries on the host without a kernel, translating their system calls. Not written yet. It is a tool for bootstrapping (running a cross-built Debian ahead of its kernel, test suites, cross builds), and it does **not** replace the system emulation: both are required.
+
+Build the user-mode target by putting `pdp64-linux-user` in `QEMU_TARGETS` once it exists (see `build.sh`).
+
 `qemu-system-pdp64 -M pdp64-virt -kernel prog` runs the programs that `sim64` runs, with the same results.
 This directory holds everything written for it; `../qemu-src` (a QEMU v11.1.2 checkout) and
 `../qemu-build` are scratch places where it is built, never committed here.
@@ -138,5 +145,5 @@ of `struct pdp64_env`:
 
 ## Deliberately not done
 
-No TCG fast paths (every instruction is a helper call: correctness over speed), no user-mode `qemu-pdp64`, no gdbstub, no disassembler, no migration state (vmstate), no multi-CPU,
+No TCG fast paths (every instruction is a helper call: correctness over speed), no user-mode `qemu-pdp64` yet (a goal, see the top of this file), no gdbstub, no disassembler, no migration state (vmstate), no multi-CPU,
 no DMW translation (stored only), no ASID/G, no reset vector (vector 0), no hypervisor mode (the IOMMU's two levels are tested by a program that plays both roles).
