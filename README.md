@@ -1,6 +1,6 @@
 # pdp64 on QEMU
 
-> **qemu-pdp64** is the `qemu/` directory of [moebiusV/pdp64](https://github.com/moebiusV/pdp64), split out with its history (`git subtree split`). The scripts (`build.sh`, `sync.sh`) still expect the layout of the pdp64 checkout (this directory as `pdp64/qemu`, with `../common`, `../spec` and `../../qemu-src` around it), and the generated constants and the shared executor come from pdp64; build from a pdp64 checkout until the scripts are made standalone. `pdp64` stays the source of truth until it settles; this repository is refreshed from it.
+> **qemu-pdp64** is the QEMU target for the pdp64. It began as the `qemu/` directory of [moebiusV/pdp64](https://github.com/moebiusV/pdp64), split out with its history, and is now the authoritative copy: `pdp64` no longer carries one. It needs a pdp64 checkout next to it (or `PDP64=/path`) for the grammar, the shared core, the tools and the tests, and the generated files in `target-pdp64/gen` are copied from there by `sync.sh`.
 
 ## Two emulators from one target
 

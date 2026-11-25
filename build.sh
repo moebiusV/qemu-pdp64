@@ -1,11 +1,11 @@
 #!/bin/sh
 # Configure and build qemu-system-pdp64 out of tree (QEMU_BUILD, default ../qemu-build next to this repository) from QEMU_SRC (default ../qemu-src).
-# usage: qemu/build.sh [-j N]      (a first build takes a long time on two cores: run it in the background)
+# usage: build.sh [-j N]      (a first build takes a long time on two cores: run it in the background)
 # QEMU_TARGETS (default pdp64-softmmu, the full system emulation) is the configure target list; add pdp64-linux-user for the
 # user-mode emulator (qemu-pdp64) once that target exists.  Changing it needs a fresh QEMU_BUILD directory.
 set -e
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
-SIB=$(dirname "$(dirname "$here")")
+SIB=$(dirname "$here")
 Q=${QEMU_SRC:-$SIB/qemu-src}
 B=${QEMU_BUILD:-$SIB/qemu-build}
 J=2; [ "${1:-}" = "-j" ] && J=$2

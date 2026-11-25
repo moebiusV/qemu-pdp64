@@ -3,10 +3,10 @@
 # QEMU's own files) and copy the new directories.  Idempotent.  The tree is a scratch clone; nothing here is committed to it.
 set -e
 here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
-SIB=$(dirname "$(dirname "$here")")
+SIB=$(dirname "$here")
 Q=${1:-${QEMU_SRC:-$SIB/qemu-src}}
 [ -f "$Q/target/meson.build" ] || { echo "$Q is not a QEMU source tree" >&2; exit 1; }
-"$here/sync.sh" --check > /dev/null || { echo "qemu/target-pdp64/gen is stale: run qemu/sync.sh" >&2; exit 1; }
+"$here/sync.sh" --check > /dev/null || { echo "target-pdp64/gen is stale: run sync.sh (it needs the pdp64 checkout)" >&2; exit 1; }
 cd "$Q"
 if git apply --reverse --check "$here/qemu-core.patch" 2> /dev/null; then
 	echo "qemu-core.patch already applied"
