@@ -12,6 +12,7 @@
 #include "exec/helper-proto.h"
 #include "exec/cputlb.h"
 #include "accel/tcg/cpu-ldst.h"
+#include "accel/tcg/cpu-ldst-common.h"
 #include "accel/tcg/cpu-loop.h"
 #include "accel/tcg/probe.h"
 #include "system/address-spaces.h"
@@ -202,6 +203,63 @@ static void h_check(void *u, uint64_t a, int size, int write)
                  pdp64_mmu_idx_data(h->env), h->ra);
 }
 
+/*
+ * The atomic words (errata 211).  The checks come first and change nothing: the translation as a store (a page that is not present or not writable faults as a
+ * store, a stage-2 refusal is the exit, nothing is half done), then the memory type: an atomic is made atomic only where the machine controls the whole path, so
+ * a page that is uncached or a device (by the page table of every stage, or by the address in the space of devices) is a store protection fault.  The access is
+ * then one compare-and-swap of the host (sequentially consistent, atomic against the other cores of the machine, which run in other threads); every operation but
+ * the compare-and-swap is a loop of them on the value the shared core's pdp64_amo_result says the word becomes.  LL is a plain read (the reservation is the
+ * core's: the SC is a compare-and-swap against the value the LL read, QEMU's usual exclusive monitor, so a write of the same value by another core between the
+ * two is not seen: the architecture's SC fails there, this model's succeeds).
+ */
+static uint64_t h_atomic(void *u, uint64_t a, int size, int op, uint64_t x, uint64_t y)
+{
+    struct hostctx *h = u;
+    CPUPDP64State *env = h->env;
+    int idx = pdp64_mmu_idx_data(env);
+    MemOpIdx oi = make_memop_idx((size == 4 ? MO_LEUL : MO_LEUQ) | MO_ALIGN, idx);
+    uint64_t old, nv;
+
+    if (a & (size - 1)) {
+        pdp64_raise(env, VECTOR_MISALIGNED, a, "misaligned atomic access", h->ra);
+    }
+    if (env->c.deliver) {
+        probe_access(env, a, size, MMU_DATA_STORE, idx, h->ra);
+        if (!pdp64_atomic_memory_ok(env, a, idx)) {
+            pdp64_raise(env, VECTOR_SPROT, a, "atomic access to memory that is not ordinary cached memory", h->ra);
+        }
+    } else {
+        check(h, a, size);
+    }
+    if (op == PDP64_AMO_CHECK) {
+        return 0;
+    }
+    if (op == PDP64_AMO_LL) {
+        return size == 4 ? cpu_ldl_le_data_ra(env, a, h->ra) : cpu_ldq_le_data_ra(env, a, h->ra);
+    }
+    if (op == PDP64_AMO_SC || op == PDP64_AMO_CAS) {
+        /* one compare-and-swap: the word becomes the new value if it is the expected one; the old value comes back */
+        uint64_t exp = op == PDP64_AMO_SC ? y : x, nw = op == PDP64_AMO_SC ? x : y;
+
+        return size == 4 ? cpu_atomic_cmpxchgl_le_mmu(env, a, (uint32_t)exp, (uint32_t)nw, oi, h->ra)
+                         : cpu_atomic_cmpxchgq_le_mmu(env, a, exp, nw, oi, h->ra);
+    }
+    old = size == 4 ? cpu_ldl_le_data_ra(env, a, h->ra) : cpu_ldq_le_data_ra(env, a, h->ra);
+    for (;;) {
+        uint64_t prev;
+
+        if (!pdp64_amo_result(op, size, old, x, y, &nv)) {
+            return old;
+        }
+        prev = size == 4 ? cpu_atomic_cmpxchgl_le_mmu(env, a, (uint32_t)old, (uint32_t)nv, oi, h->ra)
+                         : cpu_atomic_cmpxchgq_le_mmu(env, a, old, nv, oi, h->ra);
+        if (prev == old) {
+            return old;
+        }
+        old = prev;
+    }
+}
+
 static void h_tlb(void *u, int op, uint64_t a)
 {
     struct hostctx *h = u;
@@ -237,7 +295,7 @@ static void make_env(struct pdp64_env *e, struct hostctx *h)
 {
     *e = (struct pdp64_env){ h_ld, h_st, h_fault, h_trap, h_halt, h_probe,
                              h_fetch, h_vecread, h_check, h_tlb, h_raise, h,
-                             NULL, h_hv_event };
+                             NULL, h_hv_event, h_atomic };
 }
 
 static void init_core(void)

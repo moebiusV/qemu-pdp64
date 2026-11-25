@@ -117,6 +117,9 @@ static bool s2_walk(CPUPDP64State *env, uint64_t gpa, MMUAccessType type,
     if (!(pte & PTE_BIT(D))) {
         r &= ~PAGE_WRITE;                       /* a read of a clean page: a later store walks again (software dirty bit) */
     }
+    if (((pte & PTE_MASK(MT)) >> PTE_MT) != MT_CACHED) {
+        env->walk_cached = false;               /* the stricter memory type of the two stages wins (the atomics need cached memory) */
+    }
     *rights = r;
     *shift = sh;
     *pa = (((pte & PTE_MASK(PPN)) >> PTE_PPN) << MMU_PAGE_BITS)
@@ -253,6 +256,7 @@ static bool mmu_walk(CPUPDP64State *env, vaddr addr, MMUAccessType type,
     hwaddr out;
 
     *global = false;
+    env->walk_cached = true;
     if (s1idx == PDP64_MMU_PHYS) {
         /* a guest with its translation off: guest-physical = guest-virtual; stage 2 only */
         if (!s2_walk(env, addr, type, 0, &out, &s2rights, &s2shift)) {
@@ -337,7 +341,11 @@ static bool mmu_walk(CPUPDP64State *env, vaddr addr, MMUAccessType type,
         rights &= ~PAGE_WRITE;                  /* a read of a clean page: a later store walks again */
     }
     /* beyond the consistency check the memory type MT makes no difference to
-       QEMU: whether an address is RAM or a device follows from the address */
+       QEMU's accesses: whether an address is RAM or a device follows from the
+       address.  The atomics ask for it (pdp64_atomic_memory_ok) */
+    if (((pte & PTE_MASK(MT)) >> PTE_MT) != MT_CACHED) {
+        env->walk_cached = false;
+    }
     *global = pte & PTE_BIT(G);
     /* the 4 KB page of the access inside the leaf: stage 1's output (a guest-physical address for a guest) */
     gpa = (((pte & PTE_MASK(PPN)) >> PTE_PPN) << MMU_PAGE_BITS)
@@ -381,4 +389,25 @@ bool pdp64_mmu_translate(CPUPDP64State *env, vaddr addr, MMUAccessType type,
         acache_insert(env, addr, mmu_idx, *pa, *prot, *size, global);
     }
     return true;
+}
+
+/* the memory type of an address for an atomic: ordinary cached memory is cached by the page (every stage that translated it) and in the space of memory; a physical access (the hypervisor, or the
+   translation off) is cached if the address is in the space of memory.  The legacy machine has RAM and nothing else. */
+bool pdp64_atomic_memory_ok(CPUPDP64State *env, uint64_t addr, int idx)
+{
+    hwaddr pa;
+    int prot, fv;
+    vaddr size;
+    bool global;
+
+    if (!env->c.deliver) {
+        return pdp64_mapped(env, addr, 1);
+    }
+    if (idx == PDP64_MMU_PHYS) {
+        return !((addr >> MAP_SPACE_BIT) & 1);
+    }
+    if (!mmu_walk(env, addr, MMU_DATA_STORE, idx, &pa, &prot, &size, &fv, &global)) {
+        return false;                           /* the access has been probed already: not reached for a legal address */
+    }
+    return env->walk_cached && !((pa >> MAP_SPACE_BIT) & 1);
 }
