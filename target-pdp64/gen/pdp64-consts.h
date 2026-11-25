@@ -227,6 +227,7 @@
 #define MN_SYSX_PUSHX                0
 #define MN_SYS_NONE_NOP              0
 #define MN_TAG_BTAG                  0
+#define MN_TLBX_TLBIAS               0
 #define MN_XFER_JMPI                 0
 #define MN_AESC_DIVU                 1
 #define MN_ATOM_CASDB                1
@@ -239,6 +240,7 @@
 #define MN_SYS_MTPS                  1
 #define MN_SYS_NONE_RTI              1
 #define MN_TAG_BNTAG                 1
+#define MN_TLBX_TLBIGP               1
 #define MN_XFER_CALLI                1
 #define MN_AESC_MOD                  2
 #define MN_ATOM_SWAP                 2
@@ -574,6 +576,11 @@
 #define RNUM_R29                     29
 #define RNUM_R30                     30
 #define RNUM_R31                     31
+#define RTIMASK_NONE                 0
+#define RTIMASK_VECTOR               14
+#define RTIMASK_CALLEE               4278234880
+#define RTIMASK_SYSCALL              4278234881
+#define RTIMASK_ALL                  4294967295
 #define SUBOP_SET                    32
 #define SYS_MINOR_SYSX               15
 #define SYSREG_PTBR                  0

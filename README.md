@@ -109,8 +109,8 @@ A guest with `GTBR.S2EN` set has every address of stage 1 and every page-table e
 for the 40-bit guest-physical space, software accessed and dirty bits: a clear A, or a clear D on a store, refuses).  A failure is an exit (code `XCODE_S2_INVALID` or `XCODE_S2_REFUSED`, vector 18, 19 or 20)
 with `HEPC` the instruction, `HEVA` the guest-virtual address, `HGPA` the failing guest-physical address (the entry's address with the flag WALK, the vector fetch with VEC) and `HINSN`.  QEMU's MMU indexes 4 to 7 are
 the guest's (translation off, kernel, user, kernel with UA clear, each with stage 2 under it).  The translations of a guest are also kept in an architectural cache keyed by (guest tag, address-space number, mode index,
-page), beside QEMU's own TLB (which has no tags and is flushed more than the rules ask): it is discarded only as the rules G-a to G-d say (a guest's TLBI and TLBIA, a write to PTBR, ASID or MMUCTL and TLBIA at H = 1 act
-on the tag in GTBR; a write to GTBR that changes the root or the enable bit discards the tag written; GENTER, ISYNC and a change of the tag alone discard nothing), so a missing invalidate is observable
+page), beside QEMU's own TLB (which has no tags and is flushed more than the rules ask): it is discarded only as the rules G-a to G-d say (a guest's TLBI, TLBIAS and TLBIA, a write to PTBR, ASID or MMUCTL and TLBIA at H = 1 act
+on the tag in GTBR; TLBIAS discards the non-global entries of the address-space number in its register; TLBIGP, at H = 1 only, discards the whole tag because the cache keeps no guest-physical page, which the architecture allows; a write to GTBR that changes the root or the enable bit discards the tag written; GENTER, ISYNC and a change of the tag alone discard nothing), so a missing invalidate is observable
 (tests/qemu/hv-stage2.S).  The model does not count the two-stage reads, and a bus error on a stage-2 table is reported as an invalid entry.
 
 ## The MMU (kernel-mode machine, MMUCTL.enable = 1)
@@ -120,7 +120,7 @@ by instruction/load/store), R/W/X/U permissions (protection fault 9/10/11), soft
 leaves (misaligned superpage: page fault), the consistency of memory type and space bit (PROPOSED: a leaf whose physical page has bit 39 set must have type device or device-weak, one with bit 39 clear cached or uncached; otherwise a protection fault), a bus error while reading a table or the target (vector 13).  Permissions are checked before A and D.  The
 walker never writes a table.  QEMU's TLB is per MMU index: 0 physical (translation off), 1 kernel, 2 user and supervisor.  Simplifications:
 
-- ASID and G are not modelled: any write to `PTBR`, `ASID` or `MMUCTL`, and `TLBIA`, flush the whole TLB (an implementation may drop entries at any time, so this is a valid
+- ASID and G are not modelled: any write to `PTBR`, `ASID` or `MMUCTL`, and `TLBIA`, `TLBIAS` and `TLBIGP`, flush the whole TLB (an implementation may drop entries at any time, so this is a valid
   one); `TLBI` flushes the page (the whole superpage entry, for a 2 MB or 1 GB leaf); stale translations persist until then, as the architecture says.
 - A write to a clean page (D = 0) re-walks even without `TLBI`, because the cached entry lacks write permission.
 - The memory type MT is checked against the space bit (above) and otherwise ignored: RAM or device follows from the physical address.

@@ -189,8 +189,9 @@ static void acache_insert(CPUPDP64State *env, vaddr addr, int mmu_idx,
         .vpn = addr >> MMU_PAGE_BITS, .pa = pa, .prot = prot, .size = size };
 }
 
-/* the ops of the executor's tlb hook on the cache: TLBI (a page of the current address space and the global entries of the tag in GTBR), TLBIA and the writes to PTBR,
-   ASID, MMUCTL (every entry of the tag in GTBR), a write to GTBR that changes the root or the enable bit (every entry of the tag written, in addr) */
+/* the ops of the executor's tlb hook on the cache: TLBI (a page of the current address space and the global entries of the tag in GTBR), TLBIAS (the non-global entries of the
+   address-space number in addr, of the tag in GTBR), TLBIGP and TLBIA and the writes to PTBR, ASID, MMUCTL (every entry of the tag in GTBR: the cache keeps no guest-physical
+   page, so TLBIGP discards the whole tag, which the architecture allows), a write to GTBR that changes the root or the enable bit (every entry of the tag written, in addr) */
 void pdp64_acache_flush(CPUPDP64State *env, int op, uint64_t addr)
 {
     uint16_t tag = op == PDP64_TLB_GTBR ? (addr >> GTBR_TAG) & ((1u << GTBR_WIDTH_TAG) - 1)
@@ -205,6 +206,9 @@ void pdp64_acache_flush(CPUPDP64State *env, int op, uint64_t addr)
         }
         if (op == PDP64_TLB_PAGE && !(e->vpn == addr >> MMU_PAGE_BITS
             && (e->global || e->asid == (env->c.asid & 0xffff)))) {
+            continue;
+        }
+        if (op == PDP64_TLB_ASID && (e->global || e->asid != (addr & 0xffff))) {
             continue;
         }
         e->valid = false;
