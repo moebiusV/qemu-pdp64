@@ -348,7 +348,6 @@
 #define MN_SYSREG_MTSR               14
 #define MN_SYS_PROBEW                14
 #define MN_SOP_POP                   15
-#define MN_SYS_TRAPL                 15
 #define MN_AESC_MIN                  16
 #define MN_BESC_ROR                  16
 #define MN_FESC_FMADD                16
