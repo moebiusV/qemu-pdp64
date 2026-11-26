@@ -279,7 +279,6 @@
 #define MN_BESC_BSWAPL               7
 #define MN_CBRANCH_CBCC              7
 #define MN_SYS_NONE_WFE              7
-#define MN_AESC_ABS                  8
 #define MN_ATOM_AMAXU                8
 #define MN_BESC_BITREV               8
 #define MN_CBRANCH_CBCS              8
@@ -325,13 +324,9 @@
 #define MN_SYSREG_MTSR               14
 #define MN_SYS_PROBEW                14
 #define MN_SOP_POP                   15
-#define MN_AESC_MIN                  16
 #define MN_BESC_ROR                  16
 #define MN_FESC_FMADD                16
-#define MN_AESC_MINU                 17
-#define MN_AESC_MAX                  18
 #define MN_BESC_ROR32                18
-#define MN_AESC_MAXU                 19
 #define MN_FESC_FNMSUB               19
 #define MN_ALU_ADD                   22
 #define MN_ALU_SUB                   23
@@ -406,6 +401,7 @@
 #define MN_ALU_FNEG32                284
 #define MN_ALU_FABS32                285
 #define MN_ALU_MULU                  286
+#define MN_ALU_ABS                   290
 #define MODE_KERNEL                  0
 #define MODE_SUPERVISOR              1
 #define MODE_USER                    3
