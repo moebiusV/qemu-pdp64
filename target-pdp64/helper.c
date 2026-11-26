@@ -17,9 +17,9 @@ void pdp64_cpu_dump_state(CPUState *cs, FILE *f, int flags)
         qemu_fprintf(f, "r%-2d %016" PRIx64 "%s", i, env->c.r[i],
                      i % 4 == 3 ? "\n" : "  ");
     }
-    qemu_fprintf(f, "pc  %016" PRIx64 "  N%d Z%d V%d C%d  fpsr %02" PRIx64
+    qemu_fprintf(f, "pc  %016" PRIx64 "  fpsr %02" PRIx64
                  "  psw %04x\n",
-                 env->c.pc, env->c.fN, env->c.fZ, env->c.fV, env->c.fC,
+                 env->c.pc,
                  env->c.fpsr, pdp64_psw(&env->c));
 }
 

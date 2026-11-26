@@ -1,5 +1,5 @@
 /*
- * pdp64 CPU state.  The register file, flags, PSW and system registers are
+ * pdp64 CPU state.  The register file, PSW and system registers are
  * struct pdp64_cpu of the shared execution core (gen/pdp64exec.h), embedded
  * as is: the core operates on it directly.
  * SPDX-License-Identifier: BSD-2-Clause
