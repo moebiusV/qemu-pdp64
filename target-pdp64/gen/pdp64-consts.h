@@ -219,6 +219,7 @@
 #define MN_MBLK_MCPY                 0
 #define MN_MOV_MOVQ                  0
 #define MN_SOP_CLR                   0
+#define MN_SURFACE_MOV               0
 #define MN_SYSX_PUSHX                0
 #define MN_SYS_NONE_NOP              0
 #define MN_TAG_BTAG                  0
@@ -231,6 +232,7 @@
 #define MN_FESC_FSQRT                1
 #define MN_MBLK_MMOV                 1
 #define MN_SOP_COM                   1
+#define MN_SURFACE_MOV_U             1
 #define MN_SYSX_POPX                 1
 #define MN_SYS_MTPS                  1
 #define MN_SYS_NONE_RTI              1
@@ -244,6 +246,7 @@
 #define MN_MBLK_MSET                 2
 #define MN_MOV_MOVL                  2
 #define MN_SOP_INC                   2
+#define MN_SURFACE_FCVT              2
 #define MN_SYSX_ISYNC                2
 #define MN_SYS_MFPS                  2
 #define MN_SYS_NONE_RTT              2
