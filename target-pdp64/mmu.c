@@ -118,7 +118,7 @@ static bool s2_walk(CPUPDP64State *env, uint64_t gpa, MMUAccessType type,
         r &= ~PAGE_WRITE;                       /* a read of a clean page: a later store walks again (software dirty bit) */
     }
     if (((pte & PTE_MASK(MT)) >> PTE_MT) != MT_CACHED) {
-        env->walk_cached = false;               /* the stricter memory type of the two stages wins (the atomics need cached memory) */
+        env->walk_cached = false;               /* the larger memory type code of the two stages wins, cached being 0 (the atomics need cached memory) */
     }
     *rights = r;
     *shift = sh;
