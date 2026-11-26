@@ -49,12 +49,10 @@ G_NORETURN void pdp64_raise(CPUPDP64State *env, int vector, uint64_t eva,
     cpu_loop_exit_restore(cs, ra);
 }
 
+/* a plain access works at any address; the mapping check of the legacy machine remains (an access that crosses a page is probed on both pages by the memory
+   functions of QEMU before a store writes: nothing is half written) */
 static void check(struct hostctx *h, uint64_t a, int size)
 {
-    if (size > 1 && (a & (size - 1))) {
-        pdp64_raise(h->env, VECTOR_MISALIGNED, a, "misaligned data access",
-                    h->ra);
-    }
     /* the legacy machine has RAM and nothing else; the kernel-mode machine
        has a bus (an unassigned address is a bus fault: tlb_fill, do_transaction_failed) */
     if (!h->env->c.deliver && !pdp64_mapped(h->env, a, size)) {
@@ -198,6 +196,9 @@ static void h_check(void *u, uint64_t a, int size, int write)
 {
     struct hostctx *h = u;
 
+    if (size > 1 && (a & (size - 1))) {         /* the block and vector operands, PUSHX and POPX keep the alignment fault */
+        pdp64_raise(h->env, VECTOR_MISALIGNED, a, "misaligned data access", h->ra);
+    }
     check(h, a, size);
     probe_access(h->env, a, size, write ? MMU_DATA_STORE : MMU_DATA_LOAD,
                  pdp64_mmu_idx_data(h->env), h->ra);

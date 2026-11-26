@@ -76,11 +76,12 @@ static inline bool pdp64_mapped(const CPUPDP64State *env, uint64_t a, int size)
 }
 
 /*
- * The QEMU MMU indexes: 0 physical (translation off), 1 kernel with UA set
- * (a data access reaches user pages), 2 the other modes (user, and
- * supervisor, which is treated as user), 3 kernel with UA clear (a data
- * access to a user page is a protection fault: errata 43, 190).  UA is in
- * the index so that STUA and CLUA flush nothing.
+ * The QEMU MMU indexes: 0 physical (translation off), 1 kernel with the
+ * user pages open (only PROBER and PROBEW use it: they are not affected by
+ * the guard), 2 the other modes (user, and supervisor, which is treated as
+ * user), 3 kernel mode (a data access to a user page is a protection fault:
+ * the guard is always on, and only a `.U` access, which runs with index 2,
+ * reaches a user page).
  */
 enum { PDP64_MMU_PHYS = 0, PDP64_MMU_KERNEL = 1, PDP64_MMU_USER = 2,
        PDP64_MMU_KERNEL_GUARD = 3,
@@ -108,8 +109,7 @@ static inline int pdp64_mmu_idx_mode(const CPUPDP64State *env, unsigned mode)
     if (mode != MODE_KERNEL) {
         return PDP64_MMU_USER + s2;
     }
-    return ((env->c.psw >> PSW_UA & 1) ? PDP64_MMU_KERNEL
-                                       : PDP64_MMU_KERNEL_GUARD) + s2;
+    return PDP64_MMU_KERNEL_GUARD + s2;
 }
 
 /* the index of a data access: a `.U` move (movq.u and the others) is made

@@ -244,6 +244,12 @@ static const struct SysemuCPUOps pdp64_sysemu_ops = {
     .get_phys_addr_debug = pdp64_cpu_get_phys_addr_debug,
 };
 
+/* a plain access may cross a page: the address of its second page is the first plus the size, with no wrap (the address space is 64 bits) */
+static vaddr pdp64_pointer_wrap(CPUState *cs, int idx, vaddr res, vaddr base)
+{
+    return res;
+}
+
 static const TCGCPUOps pdp64_tcg_ops = {
     .guest_default_memory_order = TCG_MO_ALL,
     .mttcg_supported = false,
@@ -256,7 +262,7 @@ static const TCGCPUOps pdp64_tcg_ops = {
     .mmu_index = pdp64_cpu_mmu_index,
     .tlb_fill = pdp64_cpu_tlb_fill,
     .do_transaction_failed = pdp64_cpu_do_transaction_failed,
-    .pointer_wrap = cpu_pointer_wrap_notreached,
+    .pointer_wrap = pdp64_pointer_wrap,
 
     .cpu_exec_interrupt = pdp64_cpu_exec_interrupt,
     .cpu_exec_halt = pdp64_cpu_has_work,
