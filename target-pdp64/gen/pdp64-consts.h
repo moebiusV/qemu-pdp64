@@ -429,6 +429,8 @@
 #define MN_FESC_FCVTLH               101
 #define MN_CBRANCH_CBHIS             263
 #define MN_CBRANCH_CBLO              264
+#define MN_ALU_FNEG32                284
+#define MN_ALU_FABS32                285
 #define MN_ALU_MULU                  286
 #define MN_BRANCH_BHIS               311
 #define MN_BRANCH_BLO                312
