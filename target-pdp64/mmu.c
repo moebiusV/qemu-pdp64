@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 #include "qemu/osdep.h"
+#include "qemu/rcu.h"
 #include "cpu.h"
 #include "exec/page-protection.h"
 #include "exec/target_page.h"
@@ -59,6 +60,20 @@ static bool s2_fail(CPUPDP64State *env, int code, unsigned flags, uint64_t gpa)
     env->c.s2_flags = flags;
     env->c.s2_gpa = gpa;
     return false;
+}
+
+/* the memory type of a leaf joins the type of the walk: the stricter of the stages wins, and the codes run in the order of strictness, so it is the larger (the atomics need
+   cached memory, the plain accesses that are not aligned need a page that is not strongly ordered) */
+static void walk_note_mt(CPUPDP64State *env, uint64_t pte)
+{
+    unsigned mt = (pte & PTE_MASK(MT)) >> PTE_MT;
+
+    if (mt != MT_CACHED) {
+        env->walk_cached = false;
+    }
+    if (mt > env->walk_mt) {
+        env->walk_mt = mt;
+    }
 }
 
 /* the walk of stage 2: the root is two consecutive pages (1024 entries, so that the whole 40-bit guest-physical space is covered, the upper half being device space) and
@@ -117,9 +132,7 @@ static bool s2_walk(CPUPDP64State *env, uint64_t gpa, MMUAccessType type,
     if (!(pte & PTE_BIT(D))) {
         r &= ~PAGE_WRITE;                       /* a read of a clean page: a later store walks again (software dirty bit) */
     }
-    if (((pte & PTE_MASK(MT)) >> PTE_MT) != MT_CACHED) {
-        env->walk_cached = false;               /* the larger memory type code of the two stages wins, cached being 0 (the atomics need cached memory) */
-    }
+    walk_note_mt(env, pte);                     /* the larger memory type code of the two stages wins, cached being 0 */
     *rights = r;
     *shift = sh;
     *pa = (((pte & PTE_MASK(PPN)) >> PTE_PPN) << MMU_PAGE_BITS)
@@ -257,6 +270,7 @@ static bool mmu_walk(CPUPDP64State *env, vaddr addr, MMUAccessType type,
 
     *global = false;
     env->walk_cached = true;
+    env->walk_mt = MT_CACHED;
     if (s1idx == PDP64_MMU_PHYS) {
         /* a guest with its translation off: guest-physical = guest-virtual; stage 2 only */
         if (!s2_walk(env, addr, type, 0, &out, &s2rights, &s2shift)) {
@@ -343,9 +357,7 @@ static bool mmu_walk(CPUPDP64State *env, vaddr addr, MMUAccessType type,
     /* beyond the consistency check the memory type MT makes no difference to
        QEMU's accesses: whether an address is RAM or a device follows from the
        address.  The atomics ask for it (pdp64_atomic_memory_ok) */
-    if (((pte & PTE_MASK(MT)) >> PTE_MT) != MT_CACHED) {
-        env->walk_cached = false;
-    }
+    walk_note_mt(env, pte);
     *global = pte & PTE_BIT(G);
     /* the 4 KB page of the access inside the leaf: stage 1's output (a guest-physical address for a guest) */
     gpa = (((pte & PTE_MASK(PPN)) >> PTE_PPN) << MMU_PAGE_BITS)
@@ -410,4 +422,37 @@ bool pdp64_atomic_memory_ok(CPUPDP64State *env, uint64_t addr, int idx)
         return false;                           /* the access has been probed already: not reached for a legal address */
     }
     return env->walk_cached && !((pa >> MAP_SPACE_BIT) & 1);
+}
+
+/* is the page of this address strongly ordered device memory (memory type device, 3) for an access of the MMU index idx?  A plain access that is not aligned to its size faults on such a
+   page (it would be two accesses to the device).  The page is the stricter of the stages; a physical access (the hypervisor, or translation off) is strongly ordered if the address is in the space
+   of devices; the legacy machine has RAM and nothing else.  The address has been probed already: an address that does not translate is not strict here (the access raises its own fault). */
+bool pdp64_device_strict(CPUPDP64State *env, uint64_t addr, int idx, bool write)
+{
+    hwaddr pa;
+    int prot, fv;
+    vaddr size;
+    bool global;
+
+    if (!env->c.deliver) {
+        return false;
+    }
+    if (idx == PDP64_MMU_PHYS) {
+        /* the space of devices, where a device answers (an address nothing answers is a bus fault, which the access gives) */
+        MemoryRegion *mr;
+        hwaddr xlat, len = 1;
+        bool dev;
+
+        if (!((addr >> MAP_SPACE_BIT) & 1)) {
+            return false;
+        }
+        RCU_READ_LOCK_GUARD();
+        mr = address_space_translate(&address_space_memory, addr, &xlat, &len, false, MEMTXATTRS_UNSPECIFIED);
+        dev = memory_region_owner(mr) != NULL;
+        return dev;
+    }
+    if (!mmu_walk(env, addr, write ? MMU_DATA_STORE : MMU_DATA_LOAD, idx, &pa, &prot, &size, &fv, &global)) {
+        return false;
+    }
+    return env->walk_mt == MT_DEVICE;           /* a page in the space of devices has type 2 or 3 (the entry says so), so the type is what counts */
 }

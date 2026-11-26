@@ -61,10 +61,29 @@ static void check(struct hostctx *h, uint64_t a, int size)
     }
 }
 
+/* a plain access that is not aligned to its size works on normal memory and on weakly ordered device memory (the machine makes two accesses where it must), and it faults on strongly ordered
+   device memory, where two accesses would be two transactions on the device: the misalignment fault, EVA the address of the access, nothing performed.  An access that touches two pages is
+   judged by the stricter of them. */
+static void check_device_misaligned(struct hostctx *h, uint64_t a, int size, bool write)
+{
+    CPUPDP64State *env = h->env;
+    int idx;
+
+    if (size == 1 || !(a & (size - 1)) || !env->c.deliver) {
+        return;
+    }
+    idx = pdp64_mmu_idx_data(env);
+    if (pdp64_device_strict(env, a, idx, write)
+        || (((a ^ (a + size - 1)) >> MMU_PAGE_BITS) && pdp64_device_strict(env, a + size - 1, idx, write))) {
+        pdp64_raise(env, VECTOR_MISALIGNED, a, "misaligned access to strongly ordered device memory", h->ra);
+    }
+}
+
 static uint64_t h_ld(void *u, uint64_t a, int size)
 {
     struct hostctx *h = u;
 
+    check_device_misaligned(h, a, size, false);
     check(h, a, size);
     switch (size) {
     case 1: return cpu_ldub_data_ra(h->env, a, h->ra);
@@ -78,6 +97,7 @@ static void h_st(void *u, uint64_t a, int size, uint64_t v)
 {
     struct hostctx *h = u;
 
+    check_device_misaligned(h, a, size, true);
     check(h, a, size);
     switch (size) {
     case 1: cpu_stb_data_ra(h->env, a, v, h->ra); break;

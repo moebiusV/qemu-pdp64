@@ -52,6 +52,7 @@ typedef struct CPUArchState {
     unsigned acache_next;
     /* set by the last walk of the page tables: every stage that translated the address says cached memory (MT_CACHED); the atomics need it (errata 211) */
     bool walk_cached;
+    uint8_t walk_mt;            /* ... and the stricter memory type of those stages (MT_CACHED 0 to MT_DEVICE 3): the plain accesses that are not aligned ask for it */
 } CPUPDP64State;
 
 struct ArchCPU {
@@ -127,6 +128,8 @@ static inline int pdp64_mmu_idx_data(const CPUPDP64State *env)
 
 /* mmu.c: is the address ordinary cached memory (not uncached, not a device) for an access of the MMU index idx?  The atomics fault on anything else (errata 211) */
 bool pdp64_atomic_memory_ok(CPUPDP64State *env, uint64_t addr, int idx);
+/* mmu.c: is the page of the address strongly ordered device memory (a plain access that is not aligned to its size faults there)? */
+bool pdp64_device_strict(CPUPDP64State *env, uint64_t addr, int idx, bool write);
 
 void pdp64_translate_init(void);
 void pdp64_translate_code(CPUState *cs, TranslationBlock *tb,

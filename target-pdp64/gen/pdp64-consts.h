@@ -338,7 +338,6 @@
 #define MN_BESC_ROR                  16
 #define MN_FESC_FMADD                16
 #define MN_AESC_MINU                 17
-#define MN_BESC_ROL                  17
 #define MN_AESC_MAX                  18
 #define MN_BESC_ROR32                18
 #define MN_AESC_MAXU                 19
@@ -429,6 +428,7 @@
 #define MN_FESC_FCVTLH               101
 #define MN_CBRANCH_CBHIS             263
 #define MN_CBRANCH_CBLO              264
+#define MN_BESC_ROL                  272
 #define MN_ALU_FNEG32                284
 #define MN_ALU_FABS32                285
 #define MN_ALU_MULU                  286
