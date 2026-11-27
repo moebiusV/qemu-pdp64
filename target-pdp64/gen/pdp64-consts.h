@@ -401,7 +401,9 @@
 #define MN_ALU_FNEG32                284
 #define MN_ALU_FABS32                285
 #define MN_ALU_MULU                  286
+#define MN_BESC_COLSTRIP             289
 #define MN_ALU_ABS                   290
+#define MN_BESC_COLSET               291
 #define MODE_KERNEL                  0
 #define MODE_SUPERVISOR              1
 #define MODE_USER                    3
